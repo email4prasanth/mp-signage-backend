@@ -1,0 +1,107 @@
+service: signage-auth
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, "dev"}
+  region: ${opt:region, "us-east-1"}
+  memorySize: 512
+  timeout: 60
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - ecs:*
+        - iam:PassRole
+      Resource: "*"
+
+resources:
+  Resources:
+    EcsServiceAuth:
+      Type: AWS::ECS::Service
+      DependsOn:
+        - PathBasedRoutingRuleAuth
+      Properties:
+        TaskDefinition: !Ref TaskDefinitionAuth
+        Cluster: !ImportValue signage-${self:provider.stage}-ECSClusterArn
+        LaunchType: FARGATE
+        DesiredCount: 1
+        EnableExecuteCommand: true
+        DeploymentConfiguration:
+          MaximumPercent: 200
+          MinimumHealthyPercent: 70
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIP: ENABLED
+            Subnets:
+              - subnet-0694073f03cdc80a7
+              - subnet-003f960384c510393
+              - subnet-097a00a19d8b07d73
+            SecurityGroups:
+              - sg-0d982615fe1d11784
+        LoadBalancers:
+          - ContainerName: "${self:service}-${self:provider.stage}-auth"
+            ContainerPort: 9090
+            TargetGroupArn: !Ref TargetGroupAuth
+
+    TaskDefinitionAuth:
+      Type: AWS::ECS::TaskDefinition
+      Properties:
+        Family: "${self:service}-auth"
+        Cpu: 512
+        Memory: 1024
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        ExecutionRoleArn: !ImportValue signage-${self:provider.stage}-ECSTaskExecutionRoleArn
+        TaskRoleArn: !ImportValue signage-${self:provider.stage}-ECSTaskRoleArn
+        ContainerDefinitions:
+          - Name: "${self:service}-${self:provider.stage}-auth"
+            Image: 180294218712.dkr.ecr.us-east-1.amazonaws.com/auth:v${env:VERSION}
+            PortMappings:
+              - ContainerPort: 9090
+                HostPort: 9090
+                Protocol: tcp
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-group: "${self:service}-auth"
+                awslogs-region: !Ref AWS::Region
+                awslogs-stream-prefix: "${self:service}-auth"
+
+    TargetGroupAuth:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        VpcId: "vpc-02ab4b690a1d8a115"
+        Port: 9090
+        Protocol: HTTP
+        Matcher:
+          HttpCode: "200-499"
+        HealthCheckIntervalSeconds: 30
+        HealthCheckPath: "/"
+        HealthCheckProtocol: "HTTP"
+        HealthCheckTimeoutSeconds: 5
+        HealthyThresholdCount: 10
+        Name: "${self:service}-auth-tg"
+        TargetType: ip
+
+    PathBasedRoutingRuleAuth:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+        Actions:
+          - Type: forward
+            TargetGroupArn: !Ref TargetGroupAuth
+        Conditions:
+          - Field: path-pattern
+            Values:
+              - /auth
+              - /auth/*
+        # ListenerArn: !ImportValue signage-${self:provider.stage}-LoadBalancerListener
+        # Priority: 2
+        ListenerArn: !Ref LoadBalancerListener
+        Priority: 1
+
+    CloudWatchLogsGroupAuth:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: "${self:service}-auth"
+        RetentionInDays: 30

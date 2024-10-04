@@ -1,0 +1,110 @@
+service: signage-svc
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, "dev"}
+  region: ${opt:region, "us-east-1"}
+  memorySize: 512
+  timeout: 60
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - ecs:*
+        - iam:PassRole
+      Resource: "*"
+
+resources:
+  Resources:
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        ClusterName: "${self:service}"
+
+    ApplicationLoadBalancer:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        Name: "${self:service}-${self:provider.stage}-alb"
+        Type: "application"
+        Scheme: "internet-facing"
+        Subnets:
+          - subnet-0694073f03cdc80a7
+          - subnet-003f960384c510393
+          - subnet-097a00a19d8b07d73
+        SecurityGroups:
+          - sg-0d982615fe1d11784
+
+    ECSTaskExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: [ecs-tasks.amazonaws.com]
+              Action: ["sts:AssumeRole"]
+        Path: /
+        Policies:
+          - PolicyName: AmazonECSTaskExecutionRolePolicy
+            PolicyDocument:
+              Statement:
+                - Effect: Allow
+                  Action:
+                    #ECS Tasks to download images from ECR
+                    - "ecr:GetAuthorizationToken"
+                    - "ecr:BatchCheckLayerAvailability"
+                    - "ecr:GetDownloadUrlForLayer"
+                    - "ecr:BatchGetImage"
+                    - "ssm:*"
+                    #ECS Tasks to upload logs to CloudWatch
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: "*"
+
+    ECSTaskRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: [ecs-tasks.amazonaws.com]
+              Action: ["sts:AssumeRole"]
+        Path: /
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonECS_FullAccess
+        Policies:
+          - PolicyName: AmazonECSTaskRolePolicy
+            PolicyDocument:
+              Statement:
+                - Effect: Allow
+                  Action:
+                    #ECS Tasks to download images from ECR
+                    - "ecr:GetAuthorizationToken"
+                    - "ecr:BatchCheckLayerAvailability"
+                    - "ecr:GetDownloadUrlForLayer"
+                    - "ecr:BatchGetImage"
+                    - "lex:*"
+                    - "ssm:*"
+                    #ECS Tasks to upload logs to CloudWatch
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: "*"
+
+  Outputs:
+    ECSClusterArn:
+      Value: !GetAtt ECSCluster.Arn
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ECSClusterArn
+    ApplicationLoadBalancerArn:
+      Value: !Ref ApplicationLoadBalancer
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ApplicationLoadBalancerArn
+    ECSTaskExecutionRoleArn:
+      Value: !GetAtt ECSTaskExecutionRole.Arn
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ECSTaskExecutionRoleArn
+    ECSTaskRoleArn:
+      Value: !GetAtt ECSTaskRole.Arn
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ECSTaskRoleArn
