@@ -1,20 +1,30 @@
+# Use OpenJDK 17 base image
 FROM openjdk:17
 
+# Create a directory for the app
 RUN mkdir /api
+
+# Copy the application files to the container
 COPY . /api
+
+# Set up logs directory
 RUN mkdir -p /api/target/logs/
 
-# Java Environment path sets
+# Set Java environment path and options
 ENV PATH=$PATH:/api/target/
 ENV JAVA_OPTS="-XX:+UseNUMA -XX:+UseCondCardMark -XX:-UseBiasedLocking -Xms128M -Xmx400M -Xss1M -XX:+UseParallelGC -XX:MaxGCPauseMillis=100 -XX:GCTimeRatio=19"
 EXPOSE 9090
 
-# Set execute permission for binary folders
+# Build the application
+# Assuming you have Maven wrapper in your project; adjust if needed
+WORKDIR /api
+RUN ./mvnw clean package -DskipTests
+
+# Set execute permission for the .jar file after it has been built
 RUN chmod +x /api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar
-#RUN chmod +x /api/target/logs/
 
-# Health Check
-HEALTHCHECK --interval=10s --timeout=10s --retries=3 CMD curl -f http://localhost:8080/saml || exit 1
+# Health check to ensure the service is up
+HEALTHCHECK --interval=10s --timeout=10s --retries=3 CMD curl -f http://localhost:9090/saml || exit 1
 
-# Default Command
-CMD ["java","-jar","-Dspring.profiles.active=uat","./api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar", "-Dhttp.address=0.0.0.0", "-Dhttp.port=9090"]
+# Run the application
+CMD ["java", "-jar", "-Dspring.profiles.active=uat", "/api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar", "-Dhttp.address=0.0.0.0", "-Dhttp.port=9090"]
