@@ -33,11 +33,11 @@ resources:
           AwsvpcConfiguration:
             AssignPublicIP: ENABLED
             Subnets:
-              - subnet-0694073f03cdc80a7
-              - subnet-003f960384c510393
-              - subnet-097a00a19d8b07d73
+              - subnet-0f6abc5ebc4cfef16
+              - subnet-05a1ea4d551c754b0
+              - subnet-044ed61b5459af050
             SecurityGroups:
-              - sg-0d982615fe1d11784
+              - sg-03004ef2ea81df0c0
         LoadBalancers:
           - ContainerName: "${self:service}-${self:provider.stage}-auth"
             ContainerPort: 9090
@@ -71,7 +71,7 @@ resources:
     TargetGroupAuth:
       Type: AWS::ElasticLoadBalancingV2::TargetGroup
       Properties:
-        VpcId: "vpc-02ab4b690a1d8a115"
+        VpcId: "vpc-008f26e1beb018f6e"
         Port: 9090
         Protocol: HTTP
         Matcher:

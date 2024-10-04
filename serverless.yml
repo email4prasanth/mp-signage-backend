@@ -28,11 +28,11 @@ resources:
         Type: "application"
         Scheme: "internet-facing"
         Subnets:
-          - subnet-0694073f03cdc80a7
-          - subnet-003f960384c510393
-          - subnet-097a00a19d8b07d73
+          - subnet-0f6abc5ebc4cfef16
+          - subnet-05a1ea4d551c754b0
+          - subnet-044ed61b5459af050
         SecurityGroups:
-          - sg-0d982615fe1d11784
+          - sg-03004ef2ea81df0c0
 
     ECSTaskExecutionRole:
       Type: AWS::IAM::Role
