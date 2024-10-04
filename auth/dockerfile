@@ -1,8 +1,8 @@
-# Use OpenJDK 17 base image
-FROM openjdk:17
+# Use OpenJDK 17 slim base image with apt package manager
+FROM openjdk:17-slim
 
 # Install Maven
-RUN apt-get update && apt-get install -y maven
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
 
 # Create a directory for the app
 RUN mkdir /api
