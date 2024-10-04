@@ -1,34 +1,21 @@
-# Use OpenJDK 17 slim base image with apt package manager
-FROM openjdk:17-slim
+FROM openjdk:17
 
-# Install Maven
-RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
-
-# Create a directory for the app
 RUN mkdir /api
-
-# Copy the application files to the container
 COPY . /api
-
-# Set the working directory
-WORKDIR /api
-
-# Set up logs directory
 RUN mkdir -p /api/target/logs/
 
-# Set Java environment path and options
+# Java Environment path sets
 ENV PATH=$PATH:/api/target/
 ENV JAVA_OPTS="-XX:+UseNUMA -XX:+UseCondCardMark -XX:-UseBiasedLocking -Xms128M -Xmx400M -Xss1M -XX:+UseParallelGC -XX:MaxGCPauseMillis=100 -XX:GCTimeRatio=19"
 EXPOSE 9090
 
-# Build the application using Maven
-RUN mvn clean package -DskipTests
-
-# Set execute permission for the .jar file after it has been built
+# Set execute permission for binary folders
+RUN cd /api/target && ls -al
 RUN chmod +x /api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar
+#RUN chmod +x /api/target/logs/
 
-# Health check to ensure the service is up
-HEALTHCHECK --interval=10s --timeout=10s --retries=3 CMD curl -f http://localhost:9090/saml || exit 1
+# Health Check
+HEALTHCHECK --interval=10s --timeout=10s --retries=3 CMD curl -f http://localhost:8080/saml || exit 1
 
-# Run the application
-CMD ["java", "-jar", "-Dspring.profiles.active=uat", "/api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar", "-Dhttp.address=0.0.0.0", "-Dhttp.port=9090"]
+# Default Command
+CMD ["java","-jar","-Dspring.profiles.active=uat","./api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar", "-Dhttp.address=0.0.0.0", "-Dhttp.port=9090"]
