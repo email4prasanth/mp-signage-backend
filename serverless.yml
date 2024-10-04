@@ -4,7 +4,7 @@ provider:
   name: aws
   runtime: nodejs18.x
   stage: ${opt:stage, "dev"}
-  region: ${opt:region, "us-east-1"}
+  region: ${opt:region, "eu-west-2"}
   memorySize: 512
   timeout: 60
   iamRoleStatements:

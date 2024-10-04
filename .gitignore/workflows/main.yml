@@ -1,0 +1,103 @@
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - auth/**
+
+env:
+  VERSION: ${{ github.run_number }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      auth: ${{steps.filter.outputs.auth}}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            auth:
+              - 'auth/**'
+
+  cluster: # deploy
+    name: cluster
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+      - name: Install Serverless Framework
+        run: npm install -g serverless@3.38.0
+      - name: Deploy Static CARE Website
+        run: sls deploy --region eu-west-2 --stage dev
+  
+  auth:
+    needs: [changes, cluster]
+    if: ${{ needs.changes.outputs.auth == 'true' }}
+    name: auth
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Create ECR repository if it doesn't exist
+        run: |
+          if ! aws ecr describe-repositories --repository-names auth --region ${{ secrets.AWS_REGION }} > /dev/null 2>&1; then
+            echo "ECR repository does not exist. Creating it..."
+            aws ecr create-repository --repository-name auth --region ${{ secrets.AWS_REGION }}
+          else
+            echo "ECR repository already exists. Skipping creation."
+          fi
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: auth
+          IMAGE_TAG: v${{ env.VERSION }}
+        run: |
+          cd auth
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Install Serverless Framework
+        run: npm install -g serverless@3.38.0
+      - name: Deploy Static CARE Website
+        run: cd auth && sls deploy --region eu-west-2 --stage dev
+
+  # remove:
+  #   name: Remove Serverless Resources
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+
+  #     - name: Configure AWS credentials
+  #       uses: aws-actions/configure-aws-credentials@v2
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: eu-west-2
+
+  #     - name: Install Serverless Framework
+  #       run: npm install -g serverless@3.38.0
+
+  #     - name: Remove Serverless Deployment
+  #       run: sls remove --region eu-west-2 --stage dev

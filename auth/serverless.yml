@@ -4,7 +4,7 @@ provider:
   name: aws
   runtime: nodejs18.x
   stage: ${opt:stage, "dev"}
-  region: ${opt:region, "us-east-1"}
+  region: ${opt:region, "eu-west-2"}
   memorySize: 512
   timeout: 60
   iamRoleStatements:
@@ -56,7 +56,7 @@ resources:
         TaskRoleArn: !ImportValue signage-${self:provider.stage}-ECSTaskRoleArn
         ContainerDefinitions:
           - Name: "${self:service}-${self:provider.stage}-auth"
-            Image: 180294218712.dkr.ecr.us-east-1.amazonaws.com/auth:v${env:VERSION}
+            Image: 180294218712.dkr.ecr.eu-west-2.amazonaws.com/auth:v${env:VERSION}
             PortMappings:
               - ContainerPort: 9090
                 HostPort: 9090
