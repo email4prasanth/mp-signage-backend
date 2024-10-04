@@ -1,1 +1,1 @@
-##### Change this file to trigger auth/**
+##### Change this file to trigger auth/** path
