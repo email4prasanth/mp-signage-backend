@@ -1,11 +1,17 @@
 # Use OpenJDK 17 base image
 FROM openjdk:17
 
+# Install Maven
+RUN apt-get update && apt-get install -y maven
+
 # Create a directory for the app
 RUN mkdir /api
 
 # Copy the application files to the container
 COPY . /api
+
+# Set the working directory
+WORKDIR /api
 
 # Set up logs directory
 RUN mkdir -p /api/target/logs/
@@ -15,10 +21,8 @@ ENV PATH=$PATH:/api/target/
 ENV JAVA_OPTS="-XX:+UseNUMA -XX:+UseCondCardMark -XX:-UseBiasedLocking -Xms128M -Xmx400M -Xss1M -XX:+UseParallelGC -XX:MaxGCPauseMillis=100 -XX:GCTimeRatio=19"
 EXPOSE 9090
 
-# Build the application
-# Assuming you have Maven wrapper in your project; adjust if needed
-WORKDIR /api
-RUN ./mvnw clean package -DskipTests
+# Build the application using Maven
+RUN mvn clean package -DskipTests
 
 # Set execute permission for the .jar file after it has been built
 RUN chmod +x /api/target/idw-signage-auth-0.0.1-SNAPSHOT.jar
